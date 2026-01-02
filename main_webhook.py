@@ -260,6 +260,8 @@ async def startup_event():
         raise ValueError("TELEGRAM_BOT_TOKEN is not set.")
 
     ptb_application = Application.builder().token(telegram_bot_token).build()
+    await ptb_application.initialize() # Initialize the application
+
 
     # --- Register handlers ---
     # Unified Expense and OCR Conversation Handler
