@@ -89,39 +89,23 @@ class SubscriptionService:
 
     def _calculate_new_subscription_end_date(self, user: User, duration_months: int):
         logger.info(f"--- _calculate_new_subscription_end_date for user {user.telegram_id} ---")
-        logger.info(f"  Initial user.subscription_end_date: {user.subscription_end_date}")
-        logger.info(f"  Initial user.trial_end_date: {user.trial_end_date}")
-
-        now_utc = datetime.datetime.now(datetime.timezone.utc)
-        logger.info(f"  now_utc: {now_utc}")
         
-        # Helper function to ensure datetime is UTC-aware (copied for internal use or refactored)
-        def ensure_utc_aware(dt: datetime.datetime) -> datetime.datetime:
-            if dt is None:
-                return None
-            if dt.tzinfo is None:
-                # Assume naive dates from old DB entries are UTC
-                return dt.replace(tzinfo=datetime.timezone.utc)
-            return dt
-
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        
+        # Get the current subscription end date, if it exists and is in the future
         current_end_date_utc = None
-        if user.subscription_plan == "pro_paid" and user.subscription_end_date:
-            current_end_date_utc = ensure_utc_aware(user.subscription_end_date)
-            logger.info(f"  current_end_date_utc (from pro_paid): {current_end_date_utc}")
-        elif user.subscription_plan == "pro_trial" and user.trial_end_date:
-            current_end_date_utc = ensure_utc_aware(user.trial_end_date)
-            logger.info(f"  current_end_date_utc (from pro_trial): {current_end_date_utc}")
+        if user.subscription_end_date and user.subscription_end_date > now_utc:
+            current_end_date_utc = user.subscription_end_date
+            
+        base_date_for_extension = max(now_utc, current_end_date_utc) if current_end_date_utc else now_utc
 
-        base_date_for_extension = None
-        if current_end_date_utc and current_end_date_utc > now_utc:
-            base_date_for_extension = current_end_date_utc
-            logger.info(f"  base_date_for_extension set to current_end_date_utc (future): {base_date_for_extension}")
-        else:
-            base_date_for_extension = now_utc
-            logger.info(f"  base_date_for_extension set to now_utc (not future/expired): {base_date_for_extension}")
-
+        logger.info(f"  now_utc: {now_utc}")
+        logger.info(f"  current_end_date_utc: {current_end_date_utc}")
+        logger.info(f"  base_date_for_extension: {base_date_for_extension}")
         logger.info(f"  duration_months: {duration_months}")
+        
         new_end_date_utc = base_date_for_extension + relativedelta(months=duration_months)
+        
         logger.info(f"  Calculated new_end_date_utc: {new_end_date_utc}")
         logger.info(f"--- End _calculate_new_subscription_end_date ---")
         return new_end_date_utc
@@ -192,29 +176,32 @@ class SubscriptionService:
                     "message": "User not found after successful payment verification. Contact support."
                 }
             
-            # Check if this payment reference has already been logged
-            existing_payment = self.db_session.query(Payment).filter_by(reference=reference, status="successful").first()
-            if existing_payment:
-                logger.info(f"Payment reference {reference} already logged as successful. Skipping payment record creation.")
-            else:
+            # Check if this payment reference has already been logged. If not, create a new record.
+            existing_payment = self.db_session.query(Payment).filter_by(reference=reference).first()
+            if not existing_payment:
                 # Log the payment
                 new_payment = Payment(
                     user_id=user_telegram_id,
-                    amount=MONTHLY_PRO_PRICE if plan_type == "monthly" else YEARLY_PRO_PRICE, # Use actual price here
+                    amount=MONTHLY_PRO_PRICE if plan_type == "monthly" else YEARLY_PRO_PRICE,
                     plan_type=plan_type,
                     reference=reference,
                     status="successful"
                 )
                 self.db_session.add(new_payment)
-                # No commit yet, commit with user update
+            else:
+                logger.info(f"Payment reference {reference} already logged. Skipping payment record creation, but extending subscription.")
 
+            # Always extend the subscription on successful verification
+            logger.info(f"Passing duration_months={duration_months} to _calculate_new_subscription_end_date")
             new_end_date = self._calculate_new_subscription_end_date(user, duration_months)
 
             user.is_pro = True
             user.subscription_plan = "pro_paid"
-            user.subscription_start_date = datetime.datetime.now(datetime.timezone.utc)
+            # Only update start_date if this is a fresh subscription, not an extension
+            if not user.subscription_start_date or user.subscription_end_date < datetime.datetime.now(datetime.timezone.utc):
+                user.subscription_start_date = datetime.datetime.now(datetime.timezone.utc)
             user.subscription_end_date = new_end_date
-            user.subscription_duration = plan_type # Set the subscription duration
+            user.subscription_duration = plan_type
             user.trial_start_date = None
             user.trial_end_date = None
 
