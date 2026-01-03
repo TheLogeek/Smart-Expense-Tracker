@@ -10,8 +10,8 @@ import asyncio # Import asyncio
 
 logger = logging.getLogger(__name__)
 
-BASE_REFERRAL_LINK = "https://t.me/SmartExpenseTrackerMLBot?start=" # Placeholder, replace with actual bot username
-AFRICA_LAGOS_TZ = ZoneInfo("Africa/Lagos") # Defined here for consistency
+BASE_REFERRAL_LINK = "https://t.me/SmartExpenseTrackerMLBot?start=" 
+AFRICA_LAGOS_TZ = ZoneInfo("Africa/Lagos")
 
 class ReferralService:
     def __init__(self, db_session: Session):
