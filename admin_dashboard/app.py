@@ -10,8 +10,7 @@ from models import SessionLocal, User, Payment # Import Payment model
 from services import SubscriptionService, MONTHLY_PRO_PRICE, YEARLY_PRO_PRICE # Import price constants
 import datetime
 from datetime import timezone # Import timezone
-import pandas as pd # For potential data display
-# os is already imported above
+import pandas as pd
 from utils.datetime_utils import AFRICA_LAGOS_TZ # Import AFRICA_LAGOS_TZ
 
 
