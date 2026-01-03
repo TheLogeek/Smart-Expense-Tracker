@@ -1,17 +1,22 @@
 import streamlit as st
 import sys
 import os
+import datetime
+from datetime import timezone
+import pandas as pd
 
+# Set DATABASE_URL from st.secrets before other imports
+if 'DATABASE_URL' in st.secrets:
+    os.environ['DATABASE_URL'] = st.secrets['DATABASE_URL']
+
+# Add the project root to sys.path to allow imports from models, services, etc.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func, distinct # Import func and distinct
-from models import SessionLocal, User, Payment, Expense # Import Payment and Expense models
-from services import SubscriptionService, MONTHLY_PRO_PRICE, YEARLY_PRO_PRICE # Import price constants
-import datetime
-from datetime import timezone # Import timezone
-import pandas as pd
-from utils.datetime_utils import AFRICA_LAGOS_TZ # Import AFRICA_LAGOS_TZ
+from sqlalchemy import func, distinct
+from models import SessionLocal, User, Payment, Expense, Profile # Import all necessary models
+from services import SubscriptionService, MONTHLY_PRO_PRICE, YEARLY_PRO_PRICE
+from utils.datetime_utils import AFRICA_LAGOS_TZ
 
 
 def check_password():

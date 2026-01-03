@@ -9,18 +9,8 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# If DATABASE_URL is not found via os.getenv, try st.secrets (for Streamlit Cloud)
 if not DATABASE_URL:
-    try:
-        import streamlit as st
-        if "DATABASE_URL" in st.secrets:
-            DATABASE_URL = st.secrets["DATABASE_URL"]
-    except:
-        # Streamlit not installed or not running in a Streamlit context
-        pass
-
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL is not set in environment variables or st.secrets.")
+    raise ValueError("DATABASE_URL is not set in environment variables.")
 
 Base = declarative_base()
 
