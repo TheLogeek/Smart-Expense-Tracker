@@ -91,7 +91,12 @@ def display_dashboard():
         ).scalar() or 0
         estimated_total_revenue = total_payments_sum
 
+        # Calculate new users in the last 24 hours
+        twenty_four_hours_ago = datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=24)
+        new_users_last_24h = db_session.query(User).filter(User.created_at > twenty_four_hours_ago).count()
+
         st.metric(label="Total Users", value=total_users)
+        st.metric(label="New Users (24h)", value=new_users_last_24h) # New Metric
         st.metric(label="Paying Users", value=paying_users)
         st.metric(label="Estimated MRR (₦)", value=f"{int(estimated_mrr):,}")
         st.metric(label="Estimated Total Revenue (₦)", value=f"{int(estimated_total_revenue):,}")
@@ -106,6 +111,7 @@ def display_dashboard():
                 "First Name": u.first_name,
                 "Is Pro": u.is_pro,
                 "Subscription Plan": u.subscription_plan,
+                "Created At": u.created_at.astimezone(AFRICA_LAGOS_TZ).strftime("%Y-%m-%d %H:%M:%S") if u.created_at else "N/A",
                 "Trial End Date": u.trial_end_date.astimezone(AFRICA_LAGOS_TZ).strftime("%Y-%m-%d %H:%M:%S %Z%z") if u.trial_end_date else "N/A",
                 "Subscription End Date": u.subscription_end_date.astimezone(AFRICA_LAGOS_TZ).strftime("%Y-%m-%d %H:%M:%S %Z%z") if u.subscription_end_date else "N/A"
             } for u in users_data
