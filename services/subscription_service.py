@@ -92,15 +92,23 @@ class SubscriptionService:
         
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         
-        # Get the current subscription end date, if it exists and is in the future
-        current_end_date_utc = None
-        if user.subscription_end_date and user.subscription_end_date > now_utc:
-            current_end_date_utc = user.subscription_end_date
-            
-        base_date_for_extension = max(now_utc, current_end_date_utc) if current_end_date_utc else now_utc
+        # Get the current subscription or trial end date, whichever is later
+        current_end_date = None
+        if user.subscription_end_date and user.trial_end_date:
+            current_end_date = max(user.subscription_end_date, user.trial_end_date)
+        elif user.subscription_end_date:
+            current_end_date = user.subscription_end_date
+        elif user.trial_end_date:
+            current_end_date = user.trial_end_date
+        
+        logger.info(f"  Initial user.subscription_end_date: {user.subscription_end_date}")
+        logger.info(f"  Initial user.trial_end_date: {user.trial_end_date}")
+        logger.info(f"  Determined current_end_date: {current_end_date}")
+        
+        # The base date for extension is the later of now_utc or the current_end_date
+        base_date_for_extension = max(now_utc, current_end_date) if current_end_date else now_utc
 
         logger.info(f"  now_utc: {now_utc}")
-        logger.info(f"  current_end_date_utc: {current_end_date_utc}")
         logger.info(f"  base_date_for_extension: {base_date_for_extension}")
         logger.info(f"  duration_months: {duration_months}")
         
