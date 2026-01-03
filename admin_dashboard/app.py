@@ -2,7 +2,6 @@ import streamlit as st
 import sys
 import os
 
-# Add the project root to sys.path to allow imports from models, services, etc.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from sqlalchemy.orm import Session
@@ -15,7 +14,7 @@ import pandas as pd # For potential data display
 # os is already imported above
 from utils.datetime_utils import AFRICA_LAGOS_TZ # Import AFRICA_LAGOS_TZ
 
-# --- Login Logic ---
+
 def check_password():
     """Returns `True` if the user enters the correct password."""
 
