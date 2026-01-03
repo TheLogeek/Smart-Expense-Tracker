@@ -21,7 +21,7 @@ from .budget_handlers import (
 from .reminder_handlers import toggle_daily_reminders_handler
 from .referral_handlers import generate_referral_link_handler
 from .misc_handlers import (
-    start_create_profile, create_profile_type, create_profile_name, # Corrected import: ask_profile_name -> create_profile_type
+    start_create_profile, create_profile_type, create_profile_name, start, # Import start
     switch_profile_handler,
     CREATE_PROFILE_TYPE, ASK_PROFILE_NAME,
     features_handler, help_handler, export_logs_handler
