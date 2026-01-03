@@ -23,7 +23,7 @@ from handlers import (
     toggle_daily_reminders_handler,
     generate_referral_link_handler,
     verify_payment_handler,
-    start_create_profile, create_profile_type, create_profile_name,
+    start_create_profile, create_profile_type, create_profile_name, start, # Import start
     switch_profile_handler,
     CREATE_PROFILE_TYPE, ASK_PROFILE_NAME,
     features_handler, help_handler, export_logs_handler,
@@ -76,91 +76,6 @@ async def send_reminders_job(context: ContextTypes.DEFAULT_TYPE):
     for user in users:
         await reminder_service.send_daily_reminder(application, user.telegram_id)
     db_session.close()
-
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    db_session = SessionLocal()
-    user_service = UserService(db_session)
-    profile_service = ProfileService(db_session)
-    from services import SubscriptionService
-    sub_service = SubscriptionService(db_session)
-
-    telegram_user = update.effective_user
-    referral_id = None
-    
-    if context.args and len(context.args) > 0 and context.args[0].startswith("paystack_verify_"):
-        paystack_reference = context.args[0].replace("paystack_verify_", "")
-        logger.info(f"Received Paystack deep link with reference: {paystack_reference}")
-        
-        verification_result = sub_service.handle_successful_payment(paystack_reference)
-        
-        if verification_result["status"]:
-            await update.message.reply_html(
-                f"🎉 Payment successful! {verification_result['message']}",
-                reply_markup=main_menu_keyboard()
-            )
-            if 'paystack_reference' in context.user_data:
-                del context.user_data['paystack_reference']
-        else:
-            await update.message.reply_html(
-                f"❌ Payment verification failed: {verification_result['message']}\n\n"
-                "If you believe this is an error, please try clicking the '✅ Verify Payment' button "
-                "from your original payment message or contact support.",
-                reply_markup=main_menu_keyboard()
-            )
-            context.user_data['paystack_reference'] = paystack_reference
-        db_session.close()
-        return ConversationHandler.END
-
-    if context.args and len(context.args) > 0: 
-        try:
-            referral_id = int(context.args[0])
-        except ValueError:
-            logger.warning(f"Invalid referral ID received: {context.args[0]}")
-
-    user = user_service.get_or_create_user(
-        telegram_id=telegram_user.id,
-        username=telegram_user.username,
-        first_name=telegram_user.first_name,
-        last_name=telegram_user.last_name,
-        referral_id=referral_id,
-        application=ptb_application # Pass the application instance
-    )
-
-    if not profile_service.get_profiles(user.telegram_id):
-        return await start_create_profile(update, context)
-    
-    welcome_message = f"Hi {telegram_user.mention_html()}! Welcome to Smart Expense Tracker Bot.\n\n"
-
-    current_profile = profile_service.get_current_profile(user.telegram_id)
-    if current_profile:
-        welcome_message += f"<b>Current Profile:</b> {current_profile.name} ({current_profile.profile_type})\n\n"
-
-    if user.subscription_plan == "pro_trial":
-        if user.trial_end_date:
-            trial_end_date_lagos = user.trial_end_date.astimezone(AFRICA_LAGOS_TZ)
-            welcome_message += (
-                f"You have a Pro free trial until <b>{trial_end_date_lagos.strftime('%Y-%m-%d %H:%M:%S %Z%z')}</b>.\n\n"
-            )
-    elif user.is_pro:
-        welcome_message += "You are currently a Pro user with unlimited access!\n\n"
-    else:
-        welcome_message += "You are currently a Free user. Log up to 150 expenses per month.\n\n"
-
-
-    welcome_message += (
-        "Here's how to log your expenses:\n"
-        "Format 1: <code>paid [amount] for [description]</code> (e.g., <code>paid 5000 for fuel</code>)\n"
-        "Format 2: <code>[amount] for [description]</code> (e.g., <code>5000 for fuel</code>)\n\n"
-        "<b>OCR Receipt Logging</b> (Pro feature): Upload a receipt image, and I'll extract the details for you!\n\n"
-        "What would you like to do?"
-    )
-
-    reply_markup = main_menu_keyboard()
-
-    await update.message.reply_html(welcome_message, reply_markup=reply_markup)
-    db_session.close()
-    return ConversationHandler.END
 
 
 async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
