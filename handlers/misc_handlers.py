@@ -250,7 +250,7 @@ async def switch_profile_handler(update: Update, context: ContextTypes.DEFAULT_T
             "You don't have any profiles yet. Let's create one!",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Create Profile", callback_data="create_new_profile")]])
         )
-        db_session.close()
+        db_session.close() #close db
         return ConversationHandler.END
 
     keyboard = []
