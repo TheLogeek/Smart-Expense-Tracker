@@ -23,6 +23,7 @@ async def generate_referral_link_handler(update: Update, context: ContextTypes.D
         f"<code>{referral_link}</code>\n\n"
         f"Share this link with your friends! When they sign up using your link, "
         f"they get an extended 17-day Pro trial, and you get +10 Pro days "
+        f"when they create their first profile and "
         f"for every successful upgrade they make!"
     )
 
