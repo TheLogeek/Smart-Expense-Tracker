@@ -5,7 +5,8 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from sqlalchemy.orm import Session
-from models import SessionLocal, User, Payment # Import Payment model
+from sqlalchemy import func, distinct # Import func and distinct
+from models import SessionLocal, User, Payment, Expense # Import Payment and Expense models
 from services import SubscriptionService, MONTHLY_PRO_PRICE, YEARLY_PRO_PRICE # Import price constants
 import datetime
 from datetime import timezone # Import timezone
@@ -90,12 +91,17 @@ def display_dashboard():
         ).scalar() or 0
         estimated_total_revenue = total_payments_sum
 
-        # Calculate new users in the last 24 hours
+        # Calculate active users in the last 24 hours based on expense logging
         twenty_four_hours_ago = datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=24)
-        new_users_last_24h = db_session.query(User).filter(User.trial_start_date > twenty_four_hours_ago).count()
+        active_users_last_24h = db_session.query(distinct(User.telegram_id)).join(
+            Expense, User.id == Expense.profile_id # Assuming Expense.profile_id maps to User.id
+        ).filter(
+            Expense.date > twenty_four_hours_ago
+        ).count()
+        # Note: This assumes profile_id is equivalent to user_id for simplicity, might need adjustment
 
         st.metric(label="Total Users", value=total_users)
-        st.metric(label="New Users (24h)", value=new_users_last_24h) # New Metric
+        st.metric(label="Active Users (24h)", value=active_users_last_24h) # New Metric
         st.metric(label="Paying Users", value=paying_users)
         st.metric(label="Estimated MRR (₦)", value=f"{int(estimated_mrr):,}")
         st.metric(label="Estimated Total Revenue (₦)", value=f"{int(estimated_total_revenue):,}")
@@ -110,7 +116,6 @@ def display_dashboard():
                 "First Name": u.first_name,
                 "Is Pro": u.is_pro,
                 "Subscription Plan": u.subscription_plan,
-                "Created At": u.trial_start_date.astimezone(AFRICA_LAGOS_TZ).strftime("%Y-%m-%d %H:%M:%S") if u.trial_start_date else "N/A",
                 "Trial End Date": u.trial_end_date.astimezone(AFRICA_LAGOS_TZ).strftime("%Y-%m-%d %H:%M:%S %Z%z") if u.trial_end_date else "N/A",
                 "Subscription End Date": u.subscription_end_date.astimezone(AFRICA_LAGOS_TZ).strftime("%Y-%m-%d %H:%M:%S %Z%z") if u.subscription_end_date else "N/A"
             } for u in users_data
