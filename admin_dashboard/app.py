@@ -18,7 +18,6 @@ def check_password():
     """Returns `True` if the user enters the correct password."""
 
     if "password_correct" not in st.session_state:
-        # First run, show inputs for username + password.
         st.session_state["username"] = st.text_input("Username", key="username_input")
         st.session_state["password"] = st.text_input(
             "Password", type="password", key="password_input"
