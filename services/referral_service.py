@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from models import Referral, User
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup # Import necessary classes
 from telegram.ext import Application # Import Application
+import asyncio # Import asyncio
 
 logger = logging.getLogger(__name__)
 
