@@ -7,10 +7,11 @@ from models import Referral, User
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup # Import necessary classes
 from telegram.ext import Application # Import Application
 import asyncio # Import asyncio
+from dateutil.relativedelta import relativedelta # Import relativedelta
 
 logger = logging.getLogger(__name__)
 
-BASE_REFERRAL_LINK = "https://t.me/SmartExpenseTrackerMLBot?start=" 
+BASE_REFERRAL_LINK = "https://t.me/SmartExpenseTrackerMLBot?start="
 AFRICA_LAGOS_TZ = ZoneInfo("Africa/Lagos")
 
 class ReferralService:
@@ -42,44 +43,10 @@ class ReferralService:
         
         # Send notification to referrer - for profile creation bonus.
         # This will be refined in grant_profile_creation_bonus, but for now just a simple message.
-        self.send_referral_notification(referrer_id, referred_id, application, "profile_creation")
+        asyncio.create_task(self.send_referral_notification(referrer_id, referred_id, application, "profile_creation")) # Send async
 
         return referral
 
-    def _extend_user_pro_status(self, user: User, days_to_add: int) -> bool:
-        """Helper to extend a user's Pro subscription or trial."""
-        now_utc = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) # UTC-aware current time
-        extended = False
-
-        if user.is_pro: # User is currently Pro (paid or trial)
-            if user.subscription_plan == "pro_paid" and user.subscription_end_date:
-                # Ensure subscription_end_date is timezone-aware for comparison, default to UTC if not
-                current_end_date_utc = user.subscription_end_date.replace(tzinfo=datetime.timezone.utc) if user.subscription_end_date.tzinfo is None else user.subscription_end_date
-                user.subscription_end_date = max(current_end_date_utc, now_utc) + datetime.timedelta(days=days_to_add)
-                logger.info(f"Extended paid Pro subscription for user {user.telegram_id} by {days_to_add} days. New end date: {user.subscription_end_date}")
-                extended = True
-            elif user.subscription_plan == "pro_trial" and user.trial_end_date:
-                # Ensure trial_end_date is timezone-aware for comparison, default to UTC if not
-                current_end_date_utc = user.trial_end_date.replace(tzinfo=datetime.timezone.utc) if user.trial_end_date.tzinfo is None else user.trial_end_date
-                user.trial_end_date = max(current_end_date_utc, now_utc) + datetime.timedelta(days=days_to_add)
-                logger.info(f"Extended Pro trial for user {user.telegram_id} by {days_to_add} days. New end date: {user.trial_end_date}")
-                extended = True
-            else: # Should not happen if is_pro is True
-                logger.warning(f"User {user.telegram_id} is_pro but has no valid subscription_plan/dates to extend.")
-        else: # Free user, grant a Pro trial
-            user.subscription_plan = "pro_trial"
-            user.is_pro = True
-            user.trial_start_date = now_utc
-            user.trial_end_date = now_utc + datetime.timedelta(days=days_to_add)
-            logger.info(f"Granted Pro trial for free user {user.telegram_id} for {days_to_add} days. End date: {user.trial_end_date}")
-            extended = True
-        
-        if extended:
-            self.db_session.add(user)
-            self.db_session.commit()
-            self.db_session.refresh(user)
-        return extended
-    
     async def send_referral_notification(self, referrer_id: int, referred_id: int, application: Application, bonus_type: str):
         """Sends a notification to the referrer about their bonus."""
         referrer_user = self.db_session.query(User).filter_by(telegram_id=referrer_id).first()
@@ -132,16 +99,25 @@ class ReferralService:
             logger.error(f"Referrer with ID {referral.referrer_id} not found for referred_id {referred_id}.")
             return False
         
-        if self._extend_user_pro_status(referrer, days_to_add):
-            referral.profile_creation_reward_granted = True
-            self.db_session.add(referral)
-            self.db_session.commit()
-            self.db_session.refresh(referral)
-            logger.info(f"Profile creation bonus of {days_to_add} days granted to referrer {referrer.telegram_id} for referred {referred_id}.")
-            # Send notification
-            asyncio.create_task(self.send_referral_notification(referrer.telegram_id, referred_id, application, "profile_creation")) # Send async
-            return True
-        return False
+        from services import SubscriptionService # Local import
+        sub_service = SubscriptionService(self.db_session)
+        
+        # Calculate new end date using the robust method from SubscriptionService
+        new_end_date = sub_service._calculate_new_subscription_end_date(referrer, duration_months=0) + relativedelta(days=days_to_add)
+
+        referrer.subscription_end_date = new_end_date
+        referrer.is_pro = True
+        referrer.subscription_plan = "pro_paid"
+        
+        referral.profile_creation_reward_granted = True
+        self.db_session.add(referrer)
+        self.db_session.add(referral)
+        self.db_session.commit()
+        
+        logger.info(f"Profile creation bonus of {days_to_add} days granted to referrer {referrer.telegram_id} for referred {referred_id}.")
+        # Send notification
+        asyncio.create_task(self.send_referral_notification(referrer.telegram_id, referred_id, application, "profile_creation")) # Send async
+        return True
 
     def grant_upgrade_bonus(self, referred_id: int, application: Application, days_to_add: int = 10) -> bool: # Added application
         """Grants a bonus to the referrer when a referred user makes an upgrade."""
@@ -156,13 +132,22 @@ class ReferralService:
             logger.error(f"Referrer with ID {referral.referrer_id} not found for referred_id {referred_id}.")
             return False
 
-        if self._extend_user_pro_status(referrer, days_to_add):
-            referral.upgrade_bonuses_granted_count += 1
-            self.db_session.add(referral)
-            self.db_session.commit()
-            self.db_session.refresh(referral)
-            logger.info(f"Upgrade bonus of {days_to_add} days granted to referrer {referrer.telegram_id} for referred {referred_id}. Total upgrade bonuses: {referral.upgrade_bonuses_granted_count}.")
-            # Send notification
-            asyncio.create_task(self.send_referral_notification(referrer.telegram_id, referred_id, application, "upgrade")) # Send async
-            return True
-        return False
+        from services import SubscriptionService # Local import
+        sub_service = SubscriptionService(self.db_session)
+
+        # Calculate new end date using the robust method from SubscriptionService
+        new_end_date = sub_service._calculate_new_subscription_end_date(referrer, duration_months=0) + relativedelta(days=days_to_add)
+
+        referrer.subscription_end_date = new_end_date
+        referrer.is_pro = True
+        referrer.subscription_plan = "pro_paid"
+        
+        referral.upgrade_bonuses_granted_count += 1
+        self.db_session.add(referrer)
+        self.db_session.add(referral)
+        self.db_session.commit()
+        
+        logger.info(f"Upgrade bonus of {days_to_add} days granted to referrer {referrer.telegram_id} for referred {referred_id}. Total upgrade bonuses: {referral.upgrade_bonuses_granted_count}.")
+        # Send notification
+        asyncio.create_task(self.send_referral_notification(referrer.telegram_id, referred_id, application, "upgrade")) # Send async
+        return True
