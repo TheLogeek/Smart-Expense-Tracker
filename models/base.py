@@ -4,20 +4,23 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables (for local development or environments like Render)
 load_dotenv()
 
-# Dynamically get DATABASE_URL from environment variable
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if DATABASE_URL.startswith("sqlite:///"):
-    # For SQLite, ensure relative path is handled correctly if needed, or keep absolute
-    # For simplicity, if it's SQLite, we assume it's still local and might not need dynamic path if .env points to specific file
-    pass 
-else:
-    # For PostgreSQL or other, connection args might differ.
-    # We remove check_same_thread for PostgreSQL as it's not applicable.
-    pass
+# If DATABASE_URL is not found via os.getenv, try st.secrets (for Streamlit Cloud)
+if not DATABASE_URL:
+    try:
+        import streamlit as st
+        if "DATABASE_URL" in st.secrets:
+            DATABASE_URL = st.secrets["DATABASE_URL"]
+    except:
+        # Streamlit not installed or not running in a Streamlit context
+        pass
+
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL is not set in environment variables or st.secrets.")
 
 Base = declarative_base()
 

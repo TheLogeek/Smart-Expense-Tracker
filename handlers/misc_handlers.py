@@ -60,7 +60,7 @@ async def create_profile_name(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_telegram_id = update.effective_user.id
     user = user_service.get_user(user_telegram_id) # Get the User object
 
-    new_profile = profile_service.create_profile(user_telegram_id, profile_name, profile_type)
+    new_profile = profile_service.create_profile(user_telegram_id, profile_name, profile_type, application=context.application) # Pass application
 
     if new_profile:
         message = f"Successfully created your '{profile_name}' ({profile_type}) profile!"
@@ -120,6 +120,7 @@ async def features_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         "  - Log Income\n"
         "  - Daily, Weekly, Monthly Summaries (No visual representation)\n"
         "  - Set Budget\n"
+        "  - Limit of one profile\n"
         "  - 3 custom categories limit\n"
         "  - Toggle Daily Reminders\n"
         "  - Referral Program\n\n"
@@ -130,6 +131,7 @@ async def features_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         "  - Daily, Weekly, Monthly Summaries\n"
         "  - Detailed Charts & Analytics\n"
         "  - Set Budget\n"
+        "  - Unlimited profiles (personal & business)\n"
         "  - Unlimited custom categories\n"
         "  - Toggle Daily Reminders\n"
         "  - Export Logs (CSV)\n"

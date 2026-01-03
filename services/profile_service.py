@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from models import Profile, User
 from services.user_service import UserService
 from services.referral_service import ReferralService # Import ReferralService
+from telegram.ext import Application # Import Application
 
 class ProfileService:
     def __init__(self, db_session: Session):
@@ -9,7 +10,7 @@ class ProfileService:
         self.user_service = UserService(db_session)
         self.referral_service = ReferralService(db_session) # Initialize ReferralService
 
-    def create_profile(self, user_telegram_id: int, name: str, profile_type: str) -> Profile:
+    def create_profile(self, user_telegram_id: int, name: str, profile_type: str, application: Application = None) -> Profile: # Added application
         user = self.user_service.get_user(user_telegram_id)
         if not user:
             return None
@@ -37,7 +38,7 @@ class ProfileService:
             # Check if the user was referred and this is their first profile creation
             if user.referred_by:
                 # Grant referrer reward (10 Pro days)
-                self.referral_service.grant_referrer_reward(referrer_id=user.referred_by, days_to_add=10)
+                self.referral_service.grant_profile_creation_bonus(referred_id=user_telegram_id, application=application, days_to_add=10) # Updated call
 
         return new_profile
 
