@@ -1,5 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, ConversationHandler
+from telegram.ext import ContextTypes, ConversationHandler, Application # Import Application
 from models import SessionLocal
 from services import SubscriptionService, UserService, MONTHLY_PRO_PRICE, YEARLY_PRO_PRICE, YEARLY_SAVINGS_NAIRA, YEARLY_SAVINGS_PERCENT
 from .menu_handlers import back_to_main_menu_keyboard
@@ -89,7 +89,7 @@ async def upgrade_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     db_session.close()
     return ConversationHandler.END
 
-async def verify_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def verify_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, application: Application = None) -> int:
     """Verifies a Paystack payment using the reference from callback_data."""
     query = update.callback_query
     await query.answer("Verifying payment...")
@@ -109,7 +109,7 @@ async def verify_payment_handler(update: Update, context: ContextTypes.DEFAULT_T
     sub_service = SubscriptionService(db_session)
     user_service = UserService(db_session)
 
-    verification_result = sub_service.handle_successful_payment(reference)
+    verification_result = sub_service.handle_successful_payment(reference, application=application) # Pass application
 
     if verification_result["status"]:
         user = user_service.get_user(user_telegram_id) # Refresh user data

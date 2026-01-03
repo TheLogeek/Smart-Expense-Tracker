@@ -30,7 +30,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         paystack_reference = context.args[0].replace("paystack_verify_", "")
         logger.info(f"Received Paystack deep link with reference: {paystack_reference}")
         
-        verification_result = sub_service.handle_successful_payment(paystack_reference)
+        verification_result = sub_service.handle_successful_payment(paystack_reference, application=context.application)
         
         if verification_result["status"]:
             await update.message.reply_html(

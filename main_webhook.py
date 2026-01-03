@@ -131,7 +131,7 @@ async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_
         await transaction_history_handler(update, context)
         return
     elif query.data.startswith("verify_payment_"):
-        await verify_payment_handler(update, context)
+        await verify_payment_handler(update, context, application=ptb_application)
         return
     elif query.data.startswith("switch_profile_"):
         db_session = SessionLocal()

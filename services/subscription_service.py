@@ -6,6 +6,7 @@ import zoneinfo
 from zoneinfo import ZoneInfo
 from payments import PaystackService
 import logging
+from telegram.ext import Application # Import Application
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +166,7 @@ class SubscriptionService:
             }
         return {"status": False, "message": payment_response.get("message", "Unknown error")}
 
-    def handle_successful_payment(self, reference: str) -> dict:
+    def handle_successful_payment(self, reference: str, application: Application = None) -> dict:
         """
         Verifies Paystack payment and upgrades the user.
         Returns a dictionary with status (bool) and message (str).
@@ -224,7 +225,7 @@ class SubscriptionService:
             if user.referred_by_info:
                 from services import ReferralService
                 ref_service = ReferralService(self.db_session)
-                ref_service.grant_upgrade_bonus(referred_id=user.telegram_id, days_to_add=10)
+                ref_service.grant_upgrade_bonus(referred_id=user.telegram_id, application=application, days_to_add=10) # Pass application
 
             return {
                 "status": True,
