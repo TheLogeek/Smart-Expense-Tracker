@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, BigInteger, func # Import func
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, BigInteger # Import BigInteger
 from sqlalchemy.orm import relationship
 from models.base import Base
 
@@ -11,7 +11,6 @@ class User(Base):
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
     is_pro = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now()) # Add created_at
     trial_start_date = Column(DateTime(timezone=True), nullable=True)
     trial_end_date = Column(DateTime(timezone=True), nullable=True)
     referred_by = Column(BigInteger, nullable=True) # telegram_id of referrer
