@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from models.base import Base
 import datetime
 import zoneinfo
-from zoneinfo import ZoneInfo # Explicitly import ZoneInfo
+from zoneinfo import ZoneInfo
 
 AFRICA_LAGOS_TZ = ZoneInfo("Africa/Lagos")
 
