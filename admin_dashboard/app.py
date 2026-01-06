@@ -5,7 +5,6 @@ import datetime
 from datetime import timezone
 import pandas as pd
 
-# Set DATABASE_URL from st.secrets before other imports
 if 'DATABASE_URL' in st.secrets:
     os.environ['DATABASE_URL'] = st.secrets['DATABASE_URL']
 
