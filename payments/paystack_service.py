@@ -1,6 +1,6 @@
 import os
 import json
-import requests # Import the requests library
+import requests
 from dotenv import load_dotenv
 import logging
 
@@ -24,7 +24,7 @@ class PaystackService:
     def initialize_payment(self, email: str, amount_kobo: int, metadata: dict = None, callback_url: str = None) -> dict:
         """
         Initializes a payment transaction with Paystack using direct requests.
-        Amount should be in kobo (e.g., 10000 for NGN 100.00).
+        Amount should be in kobo
         """
         url = f"{self.base_url}/transaction/initialize"
         
@@ -55,7 +55,6 @@ class PaystackService:
             
             # Check the API call status first
             if response_json['status']:
-                # The actual transaction status is in the 'data' object
                 transaction_data = response_json['data']
                 if transaction_data['status'] == 'success':
                     logger.info(f"Transaction {transaction_reference} verified successfully. Status: {transaction_data['status']}")
