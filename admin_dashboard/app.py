@@ -13,7 +13,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func, distinct
-from models import SessionLocal, User, Payment, Expense, Profile # Import all necessary models
+from models import SessionLocal, User, Payment, Expense, Profile
 from services import SubscriptionService, MONTHLY_PRO_PRICE, YEARLY_PRO_PRICE
 from utils.datetime_utils import AFRICA_LAGOS_TZ
 
