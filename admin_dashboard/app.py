@@ -112,7 +112,6 @@ def display_dashboard():
         
         st.subheader("User Overview")
         users_data = db_session.query(User).all()
-        # Convert to DataFrame for easy display
         users_df = pd.DataFrame([
             {
                 "Telegram ID": u.telegram_id,
