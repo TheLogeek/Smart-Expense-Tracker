@@ -102,7 +102,6 @@ def display_dashboard():
         ).filter(
             Expense.date > twenty_four_hours_ago
         ).count()
-        # Note: This assumes profile_id is equivalent to user_id for simplicity, might need adjustment
 
         st.metric(label="Total Users", value=total_users)
         st.metric(label="Active Users (24h)", value=active_users_last_24h) # New Metric
@@ -128,6 +127,5 @@ def display_dashboard():
     finally:
         db_session.close()
 
-# --- Main App Logic ---
 if check_password():
     display_dashboard()
