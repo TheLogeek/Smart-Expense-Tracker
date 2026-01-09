@@ -10,6 +10,7 @@ from models import SessionLocal, User
 from services import SummaryService, UserService, SubscriptionService
 from visuals import VisualsService
 from services.subscription_service import MONTHLY_PRO_PRICE, YEARLY_PRO_PRICE, YEARLY_SAVINGS_NAIRA, YEARLY_SAVINGS_PERCENT
+from handlers.menu_handlers import main_menu_keyboard # Import main_menu_keyboard
 
 
 logger = logging.getLogger(__name__)
@@ -60,34 +61,39 @@ async def send_weekly_summaries_job(context: ContextTypes.DEFAULT_TYPE):
                     await application.bot.send_message(
                         chat_id=user.telegram_id,
                         text=message_text,
-                        parse_mode='HTML'
+                        parse_mode='HTML',
+                        reply_markup=main_menu_keyboard() # Add main menu button
                     )
 
                     await application.bot.send_photo(
                         chat_id=user.telegram_id,
                         photo=InputFile(pie_chart_data),
-                        caption="Here's your weekly expense breakdown (Pie Chart):"
+                        caption="Here's your weekly expense breakdown (Pie Chart):",
+                        reply_markup=main_menu_keyboard() # Add main menu button
                     )
                     await asyncio.sleep(0.5) # Short delay between sending charts
 
                     await application.bot.send_photo(
                         chat_id=user.telegram_id,
                         photo=InputFile(donut_chart_data),
-                        caption="And here's another view (Donut Chart):"
+                        caption="And here's another view (Donut Chart):",
+                        reply_markup=main_menu_keyboard() # Add main menu button
                     )
                     await asyncio.sleep(0.5)
 
                     await application.bot.send_photo(
                         chat_id=user.telegram_id,
                         photo=InputFile(bar_chart_data),
-                        caption="Top categories this week (Bar Chart):"
+                        caption="Top categories this week (Bar Chart):",
+                        reply_markup=main_menu_keyboard() # Add main menu button
                     )
                     await asyncio.sleep(0.5)
                 else:
                     await application.bot.send_message(
                         chat_id=user.telegram_id,
                         text=message_text + "\nNo expense data for this week to generate charts.",
-                        parse_mode='HTML'
+                        parse_mode='HTML',
+                        reply_markup=main_menu_keyboard() # Add main menu button
                     )
             
             await asyncio.sleep(random.uniform(1, 5)) # Staggered delivery
@@ -150,34 +156,39 @@ async def send_monthly_summaries_job(context: ContextTypes.DEFAULT_TYPE):
                 await application.bot.send_message(
                     chat_id=user.telegram_id,
                     text=message_text,
-                    parse_mode='HTML'
+                    parse_mode='HTML',
+                    reply_markup=main_menu_keyboard() # Add main menu button
                 )
 
                 await application.bot.send_photo(
                     chat_id=user.telegram_id,
                     photo=InputFile(pie_chart_data),
-                    caption="Here's your monthly expense breakdown (Pie Chart):"
+                    caption="Here's your monthly expense breakdown (Pie Chart):",
+                    reply_markup=main_menu_keyboard() # Add main menu button
                 )
                 await asyncio.sleep(0.5)
 
                 await application.bot.send_photo(
                     chat_id=user.telegram_id,
                     photo=InputFile(donut_chart_data),
-                    caption="And here's another view (Donut Chart):"
+                    caption="And here's another view (Donut Chart):",
+                    reply_markup=main_menu_keyboard() # Add main menu button
                 )
                 await asyncio.sleep(0.5)
 
                 await application.bot.send_photo(
                     chat_id=user.telegram_id,
                     photo=InputFile(bar_chart_data),
-                    caption="Top categories this month (Bar Chart):"
+                    caption="Top categories this month (Bar Chart):",
+                    reply_markup=main_menu_keyboard() # Add main menu button
                 )
                 await asyncio.sleep(0.5)
             else:
                 await application.bot.send_message(
                     chat_id=user.telegram_id,
                     text=message_text + "\nNo expense data for this month to generate charts.",
-                    parse_mode='HTML'
+                    parse_mode='HTML',
+                    reply_markup=main_menu_keyboard() # Add main menu button
                 )
             
             await asyncio.sleep(random.uniform(1, 5)) # Staggered delivery
