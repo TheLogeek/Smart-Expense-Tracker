@@ -10,7 +10,7 @@ class ProfileService:
         self.user_service = UserService(db_session)
         self.referral_service = ReferralService(db_session) # Initialize ReferralService
 
-    def create_profile(self, user_telegram_id: int, name: str, profile_type: str, application: Application = None) -> Profile: # Added application
+    def create_profile(self, user_telegram_id: int, name: str, profile_type: str, currency: str, application: Application = None) -> Profile: # Added currency and application
         user = self.user_service.get_user(user_telegram_id)
         if not user:
             return None
@@ -22,7 +22,8 @@ class ProfileService:
         new_profile = Profile(
             user_id=user_telegram_id,
             name=name,
-            profile_type=profile_type
+            profile_type=profile_type,
+            currency=currency
         )
         self.db_session.add(new_profile)
         self.db_session.commit()

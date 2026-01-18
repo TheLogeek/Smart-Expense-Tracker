@@ -20,16 +20,18 @@ from handlers import (
     generate_today_summary, generate_weekly_summary, generate_monthly_summary,
     start_set_budget, choose_budget_period, enter_budget_amount, choose_budget_category, cancel_budget_op,
     CHOOSE_BUDGET_PERIOD, ENTER_BUDGET_AMOUNT, CHOOSE_BUDGET_CATEGORY,
-    toggle_daily_reminders_handler,
+    toggle_daily_reminders_handler, manage_reminders_menu, prompt_for_reminder_time, set_reminder_time, # Import reminder handlers
     generate_referral_link_handler,
     verify_payment_handler,
     start_create_profile, create_profile_type, create_profile_name, start, # Import start
     switch_profile_handler,
-    CREATE_PROFILE_TYPE, ASK_PROFILE_NAME,
+    CREATE_PROFILE_TYPE, ASK_PROFILE_NAME, ASK_CURRENCY, # Import ASK_CURRENCY state
     features_handler, help_handler, export_logs_handler,
     transaction_history_handler, show_next_transactions, show_prev_transactions,
     VIEW_TRANSACTIONS, CLEAR_HISTORY_MENU, CONFIRM_CLEAR_HISTORY, # Add new states
-    clear_history_menu_handler, execute_clear_history, cancel_clear_history # Add new handlers
+    clear_history_menu_handler, execute_clear_history, cancel_clear_history, # Add new handlers
+    set_currency_and_create_profile, change_currency_handler, set_currency_handler, # Import currency handlers
+    SET_REMINDER_TIME # Import new reminder state
 )
 import datetime
 import zoneinfo
@@ -67,14 +69,27 @@ def _serialize_reply_markup(markup: InlineKeyboardMarkup) -> str:
     return json.dumps(markup.to_dict(), sort_keys=True)
 
 async def send_reminders_job(context: ContextTypes.DEFAULT_TYPE):
-    logger.info("Running daily reminders job...")
+    """
+    This job runs periodically and sends reminders to users whose reminder time matches the current time.
+    """
+    logger.info("Running periodic reminders job...")
     application = context.application
     db_session = SessionLocal()
     reminder_service = ReminderService(db_session)
     
-    users = db_session.query(User).filter(User.daily_reminders_enabled == True).all()
-    for user in users:
+    # Get current time in UTC and round to the nearest minute
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    current_time = now_utc.time().replace(second=0, microsecond=0)
+    
+    # Find users whose reminder time matches the current time
+    users_to_remind = db_session.query(User).filter(
+        User.daily_reminders_enabled == True,
+        User.reminder_time == current_time
+    ).all()
+    
+    for user in users_to_remind:
         await reminder_service.send_daily_reminder(application, user.telegram_id)
+        
     db_session.close()
 
 
@@ -204,6 +219,7 @@ async def startup_event():
         states={
             CREATE_PROFILE_TYPE: [CallbackQueryHandler(create_profile_type, pattern="^profile_type_.*$")],
             ASK_PROFILE_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_profile_name)],
+            ASK_CURRENCY: [CallbackQueryHandler(set_currency_and_create_profile, pattern="^currency_.*$")],
         },
         fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel$"), CommandHandler("cancel", cancel)],
     ))
@@ -238,10 +254,27 @@ async def startup_event():
         fallbacks=[CallbackQueryHandler(cancel_budget_op, pattern="^cancel$"), CommandHandler("cancel", cancel_budget_op)],
     ))
     
+    ptb_application.add_handler(ConversationHandler(
+        entry_points=[CallbackQueryHandler(change_currency_handler, pattern="^change_currency$")],
+        states={
+            ASK_CURRENCY: [CallbackQueryHandler(set_currency_handler, pattern="^set_currency_.*$")],
+        },
+        fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel$"), CommandHandler("cancel", cancel)],
+    ))
+    
+    ptb_application.add_handler(ConversationHandler(
+        entry_points=[CallbackQueryHandler(manage_reminders_menu, pattern="^manage_reminders$")],
+        states={
+            SET_REMINDER_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_reminder_time)],
+        },
+        fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel$"), CommandHandler("cancel", cancel)],
+    ))
+    ptb_application.add_handler(CallbackQueryHandler(toggle_daily_reminders_handler, pattern="^toggle_daily_reminders$"))
+    ptb_application.add_handler(CallbackQueryHandler(prompt_for_reminder_time, pattern="^change_reminder_time$"))
+    
     ptb_application.add_handler(CommandHandler("start", start)) # Moved here from conv handler entry points
     ptb_application.add_handler(CallbackQueryHandler(check_subscription_status, pattern="^check_subscription$"))
     ptb_application.add_handler(CallbackQueryHandler(upgrade_confirm, pattern="^upgrade_monthly$|^upgrade_yearly$"))
-    ptb_application.add_handler(CallbackQueryHandler(toggle_daily_reminders_handler, pattern="^toggle_daily_reminders$"))
     ptb_application.add_handler(CallbackQueryHandler(generate_referral_link_handler, pattern="^refer_a_friend$"))
     ptb_application.add_handler(CallbackQueryHandler(verify_payment_handler, pattern="^verify_payment$"))
     ptb_application.add_handler(CallbackQueryHandler(switch_profile_handler, pattern="^view_switch_profile$"))
@@ -249,7 +282,7 @@ async def startup_event():
 
     # --- Job Queue Setup ---
     job_queue = ptb_application.job_queue
-    job_queue.run_daily(send_reminders_job, time=datetime.time(hour=20, minute=0, tzinfo=AFRICA_LAGOS_TZ))
+    job_queue.run_repeating(send_reminders_job, interval=300, first=10) # Run every 5 minutes
     job_queue.run_daily(send_weekly_summaries_job, time=datetime.time(hour=21, minute=0, tzinfo=AFRICA_LAGOS_TZ), days=(6,))
     job_queue.run_monthly(send_monthly_summaries_job, when=datetime.time(hour=22, minute=0, tzinfo=AFRICA_LAGOS_TZ), day=-1)
     job_queue.run_daily(send_downgrade_notifications_job, time=datetime.time(hour=23, minute=0, tzinfo=AFRICA_LAGOS_TZ))

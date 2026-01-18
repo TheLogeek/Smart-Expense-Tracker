@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 AFRICA_LAGOS_TZ = ZoneInfo("Africa/Lagos")
 
 # States for profile creation conversation
-CREATE_PROFILE_TYPE, ASK_PROFILE_NAME = range(2)
+CREATE_PROFILE_TYPE, ASK_PROFILE_NAME, ASK_CURRENCY = range(3)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     db_session = SessionLocal()
@@ -137,48 +137,55 @@ async def create_profile_type(update: Update, context: ContextTypes.DEFAULT_TYPE
     return ASK_PROFILE_NAME
 
 async def create_profile_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Stores the profile name and creates the profile."""
+    """Stores the profile name and asks for currency."""
     profile_name = update.message.text
-    logger.info(f"create_profile_name entered for user {update.effective_user.id} with name: {profile_name}")
-    profile_type = context.user_data['profile_type'] # Retrieve stored type
+    context.user_data['profile_name'] = profile_name
+
+    keyboard = [
+        [InlineKeyboardButton("₦ NGN", callback_data="currency_NGN")],
+        [InlineKeyboardButton("$ USD", callback_data="currency_USD")],
+        [InlineKeyboardButton("€ EUR", callback_data="currency_EUR")],
+        [InlineKeyboardButton("£ GBP", callback_data="currency_GBP")],
+        [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(
+        "Please select a currency for this profile.",
+        reply_markup=reply_markup
+    )
+    return ASK_CURRENCY
+
+async def set_currency_and_create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Sets the currency and creates the profile."""
+    query = update.callback_query
+    await query.answer()
+    
+    currency = query.data.split('_')[-1]
+    profile_name = context.user_data['profile_name']
+    profile_type = context.user_data['profile_type']
     
     db_session = SessionLocal()
     profile_service = ProfileService(db_session)
-    user_service = UserService(db_session) # Instantiate UserService
-    referral_service = ReferralService(db_session) # Instantiate ReferralService
+    user_service = UserService(db_session)
+    referral_service = ReferralService(db_session)
 
     user_telegram_id = update.effective_user.id
-    user = user_service.get_user(user_telegram_id) # Get the User object
+    user = user_service.get_user(user_telegram_id)
 
-    new_profile = profile_service.create_profile(user_telegram_id, profile_name, profile_type, application=context.application) # Pass application
-    logger.info(f"profile_service.create_profile returned: {new_profile}")
-
-    message = "" # Initialize message
+    new_profile = profile_service.create_profile(user_telegram_id, profile_name, profile_type, currency=currency, application=context.application)
+    
     if new_profile:
-        message = f"Successfully created your '{profile_name}' ({profile_type}) profile!"
-        
-        # Check if user was referred and this is their first profile (grant bonus)
-        if user and user.referred_by_info and len(user.profiles) <= 1:
-            if referral_service.grant_profile_creation_bonus(user_telegram_id, application=context.application):
-                logger.info(f"Profile creation bonus granted for referrer of {user_telegram_id}.")
-            else:
-                logger.info(f"Profile creation bonus not granted/already granted for referrer of {user_telegram_id}.")
-
-        await update.message.reply_text(message) # Send the success message first
+        await query.edit_message_text(f"Successfully created your '{profile_name}' ({profile_type}) profile with currency {currency}!")
         
         # Now trigger the /start command logic to show the full welcome message
-        await start(update, context) # Call start handler directly
-
-        # The 'start' handler will close the session
+        await start(update, context)
+        
         return ConversationHandler.END
     else:
-        message = "You have reached the maximum number of profiles for a free account. Please upgrade to Pro to create more."
-    
-    logger.info(f"Replying to user {user_telegram_id} with message: '{message}'")
-    await update.message.reply_text(message, reply_markup=back_to_main_menu_keyboard())
-    db_session.close()
-    logger.info(f"create_profile_name returning ConversationHandler.END for user {user_telegram_id}")
-    return ConversationHandler.END
+        await query.edit_message_text("You have reached the maximum number of profiles for a free account. Please upgrade to Pro to create more.", reply_markup=back_to_main_menu_keyboard())
+        db_session.close()
+        return ConversationHandler.END
 
 async def switch_profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Displays user's profiles and allows them to switch."""
@@ -265,7 +272,8 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         "  - Click '📊 Generate Summary' to see daily, weekly, or monthly breakdowns of your finances. Pro users get detailed charts.\n\n"
         
         "<b>Profiles:</b>\n"
-        "  - Click '👤 My Profile' to '👀 View / Switch Profile' or '➕ Create New Profile'. Free users can have 1 profile, Pro users unlimited.\n\n"
+        "  - Click '👤 My Profile' to '👀 View / Switch Profile' or '➕ Create New Profile'. Free users can have 1 profile, Pro users unlimited.\n"
+        "  - You can also '💱 Change Currency' for your current profile from the 'My Profile' menu.\n\n"
         
         "<b>Budgeting:</b>\n"
         "  - Click '🎯 Set Budget' to create daily, weekly, or monthly budgets for specific categories or overall spending.\n\n"
@@ -340,160 +348,56 @@ async def export_logs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     db_session.close()
     return ConversationHandler.END
 
-async def switch_profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Displays user's profiles and allows them to switch."""
+
+# States for currency change
+CHANGE_CURRENCY = range(1)
+
+async def change_currency_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Displays currency selection menu."""
     query = update.callback_query
     await query.answer()
-
-    db_session = SessionLocal()
-    profile_service = ProfileService(db_session)
-    user_telegram_id = update.effective_user.id
-    profiles = profile_service.get_profiles(user_telegram_id)
-
-    if not profiles:
-        await query.edit_message_text(
-            "You don't have any profiles yet. Let's create one!",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Create Profile", callback_data="create_new_profile")]])
-        )
-        db_session.close() #close db
-        return ConversationHandler.END
-
-    keyboard = []
-    for profile in profiles:
-        keyboard.append([InlineKeyboardButton(f"{profile.name} ({profile.profile_type})", callback_data=f"switch_profile_{profile.id}")])
-    keyboard.append([InlineKeyboardButton("Back to Main Menu", callback_data="main_menu")])
+    
+    keyboard = [
+        [InlineKeyboardButton("₦ NGN", callback_data="set_currency_NGN")],
+        [InlineKeyboardButton("$ USD", callback_data="set_currency_USD")],
+        [InlineKeyboardButton("€ EUR", callback_data="set_currency_EUR")],
+        [InlineKeyboardButton("£ GBP", callback_data="set_currency_GBP")],
+        [InlineKeyboardButton("🔙 Back to Profile Menu", callback_data="my_profile")]
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(
-        "Select a profile to switch to:",
+        "Please select a new currency for your current profile.",
         reply_markup=reply_markup
     )
-    db_session.close()
-    return ConversationHandler.END
+    return CHANGE_CURRENCY
 
-async def features_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Displays the features of the bot for Free and Pro plans."""
+async def set_currency_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Sets the new currency for the user's current profile."""
     query = update.callback_query
     await query.answer()
 
-    message = (
-        "<b>✨ Bot Features:</b>\n\n"
-        "<b>🆓 Free Plan:</b>\n"
-        "  - Log Expenses (150/month limit)\n"
-        "  - Log Income\n"
-        "  - Daily, Weekly, Monthly Summaries (No visual representation)\n"
-        "  - Set Budget\n"
-        "  - Limit of one profile\n"
-        "  - Toggle Daily Reminders\n"
-        "  - Referral Program\n\n"
-        "<b>🚀 Pro Plan:</b>\n"
-        "  - Unlimited Expense Logging\n"
-        "  - Log Expense from Receipt (OCR)\n"
-        "  - Log Income\n"
-        "  - Daily, Weekly, Monthly Summaries\n"
-        "  - Detailed Charts & Analytics\n"
-        "  - Set Budget\n"
-        "  - Unlimited profiles (personal & business) \n"
-        "  - Toggle Daily Reminders\n"
-        "  - Export Logs (CSV)\n"
-        "  - Daily, weekly and monthly budget Insights\n"
-        "  - Referral Program\n"
-        f"  - Monthly Pro: ₦{MONTHLY_PRO_PRICE:,}\n"
-        f"  - Yearly Pro: ₦{YEARLY_PRO_PRICE:,} (Save ₦{YEARLY_SAVINGS_NAIRA:,} - {YEARLY_SAVINGS_PERCENT}%)"
-    )
-    await query.edit_message_text(message, parse_mode='HTML', reply_markup=back_to_main_menu_keyboard())
-    return ConversationHandler.END
-
-async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Displays comprehensive help content."""
-    query = update.callback_query
-    await query.answer()
-
-    help_message = (
-        "<b>📚 Smart Expense Tracker Bot Help:</b>\n\n"
-        
-        "<b>Expense Logging:</b>\n"
-        "  - Click '💸 Log Expense' then type: 'paid [amount] for [description]' (e.g., 'paid 5000 for fuel') or '[amount] for [description]' (e.g., '5000 for fuel').\n"
-        "  - To log from a receipt (Pro feature), simply upload a photo of your receipt.\n\n"
-        
-        "<b>Income Logging:</b>\n"
-        "  - Click '💰 Log Income' then type: '[amount] from [source]' (e.g., '10000 from salary') or 'earned [amount] from [source]' (e.g., 'earned 5000 from freelance').\n\n"
-        
-        "<b>Summaries:</b>\n"
-        "  - Click '📊 Generate Summary' to see daily, weekly, or monthly breakdowns of your finances. Pro users get detailed charts.\n\n"
-        
-        "<b>Profiles:</b>\n"
-        "  - Click '👤 My Profile' to '👀 View / Switch Profile' or '➕ Create New Profile'. Free users can have 1 profile, Pro users unlimited.\n\n"
-        
-        "<b>Budgeting:</b>\n"
-        "  - Click '🎯 Set Budget' to create daily, weekly, or monthly budgets for specific categories or overall spending.\n\n"
-        
-        "<b>Export Logs (Pro):</b>\n"
-        "  - Pro users can '📤 Export Logs (CSV)' to get a detailed CSV file of all transactions.\n\n"
-        
-        "<b>Referral Program:</b>\n"
-        "  - Click '🤝 Refer a Friend' to get your unique referral link. Earn Pro days when friends upgrade!\n\n"
-        
-        "<b>Daily Reminders:</b>\n"
-        "  - '⏰ Toggle Daily Reminders' to turn on/off friendly nudges to log your expenses.\n\n"
-        
-        "<b>Upgrade to Pro:</b>\n"
-        "  - Unlock all features! Click '🚀 Upgrade to Pro' for options.\n\n"
-        
-        "If you need further assistance, please contact support."
-    )
-    await query.edit_message_text(help_message, parse_mode='HTML', reply_markup=back_to_main_menu_keyboard())
-    return ConversationHandler.END
-
-async def export_logs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Generates and sends a CSV file of all logs for Pro users."""
-    query = update.callback_query
-    await query.answer("Generating export file...")
-
+    new_currency = query.data.split('_')[-1]
+    
     db_session = SessionLocal()
-    user_service = UserService(db_session)
     profile_service = ProfileService(db_session)
-    report_service = ReportService(db_session)
-
     user_telegram_id = update.effective_user.id
-    user = user_service.get_user(user_telegram_id)
     
-    if not user:
-        message = "It looks like you haven't started yet. Please use the /start command to begin!"
-        if update.callback_query:
-            await query.edit_message_text(message)
-        else: # Should not happen from callback query
-            await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
-        db_session.close()
-        return ConversationHandler.END
-
-    current_profile = profile_service.get_current_profile(user.telegram_id)
-
-    if not current_profile:
+    current_profile = profile_service.get_current_profile(user_telegram_id)
+    
+    if current_profile:
+        current_profile.currency = new_currency
+        db_session.add(current_profile)
+        db_session.commit()
         await query.edit_message_text(
-            "You need to select a profile first to export logs. Go to 'My Profile' -> 'View / Switch Profile' or 'Create New Profile'.",
+            f"Currency for profile '{current_profile.name}' has been updated to {new_currency}.",
             reply_markup=back_to_main_menu_keyboard()
         )
-        db_session.close()
-        return ConversationHandler.END
-
-    if not user.is_pro:
+    else:
         await query.edit_message_text(
-            "Exporting logs is a Pro feature. Please upgrade to Pro to use this functionality.",
+            "Could not find an active profile. Please select one first.",
             reply_markup=back_to_main_menu_keyboard()
         )
-        db_session.close()
-        return ConversationHandler.END
-    
-    csv_data_io = report_service.generate_csv_report(current_profile.id)
-    csv_file_name = f"expense_income_report_{current_profile.name}_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
-
-    await context.bot.send_document(
-        chat_id=update.effective_chat.id,
-        document=InputFile(csv_data_io, filename=csv_file_name),
-        caption=f"Your expense and income report for profile '{current_profile.name}' is ready!",
-        reply_markup=back_to_main_menu_keyboard()
-    )
     
     db_session.close()
     return ConversationHandler.END

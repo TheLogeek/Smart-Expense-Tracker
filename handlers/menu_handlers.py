@@ -14,7 +14,7 @@ def main_menu_keyboard():
         [InlineKeyboardButton("🚀 Upgrade to Pro", callback_data="upgrade_to_pro")],
         [InlineKeyboardButton("🤝 Refer a Friend", callback_data="refer_a_friend")],
         [InlineKeyboardButton("❓ Help", callback_data="help")],
-        [InlineKeyboardButton("⏰ Toggle Daily Reminders", callback_data="toggle_daily_reminders")],
+        [InlineKeyboardButton("⏰ Manage Reminders", callback_data="manage_reminders")],
         [InlineKeyboardButton("❌ Cancel", callback_data="cancel")],
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -23,6 +23,7 @@ def my_profile_menu_keyboard():
     keyboard = [
         [InlineKeyboardButton("👀 View / Switch Profile", callback_data="view_switch_profile")],
         [InlineKeyboardButton("➕ Create New Profile", callback_data="create_new_profile")],
+        [InlineKeyboardButton("💱 Change Currency", callback_data="change_currency")],
         [InlineKeyboardButton("💳 Check Current Subscription Plan", callback_data="check_subscription")],
         [InlineKeyboardButton("🔙 Back to Main Menu", callback_data="main_menu")],
     ]

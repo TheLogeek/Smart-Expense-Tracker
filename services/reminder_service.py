@@ -41,6 +41,16 @@ class ReminderService:
         
         return expense_logged is not None
 
+    def set_reminder_time(self, user_telegram_id: int, new_time: datetime.time):
+        """Sets the user's preferred reminder time."""
+        user = self.db_session.query(User).filter(User.telegram_id == user_telegram_id).first()
+        if user:
+            user.reminder_time = new_time
+            self.db_session.add(user)
+            self.db_session.commit()
+            return True
+        return False
+
     async def send_daily_reminder(self, application, user_telegram_id: int):
         # This method will be called by APScheduler
         db_session = self.db_session

@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, BigInteger # Import BigInteger
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, BigInteger, Time # Import Time
 from sqlalchemy.orm import relationship
 from models.base import Base
+import datetime
 
 class User(Base):
     __tablename__ = "users"
@@ -22,6 +23,7 @@ class User(Base):
     subscription_duration = Column(String, nullable=True) # 'monthly', 'yearly' - for pro_paid plans
 
     daily_reminders_enabled = Column(Boolean, default=True)
+    reminder_time = Column(Time, default=datetime.time(20, 0)) # Add reminder_time with default 8 PM
     current_profile_id = Column(Integer, ForeignKey("profiles.id"), nullable=True)
 
     referred_users = relationship("Referral", foreign_keys="Referral.referrer_id", back_populates="referrer")

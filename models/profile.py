@@ -9,6 +9,7 @@ class Profile(Base):
     user_id = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
     name = Column(String, nullable=False)
     profile_type = Column(String, nullable=False) # 'personal' or 'business'
+    currency = Column(String, default="NGN") # Add currency with default
 
     user = relationship("User", foreign_keys=[user_id], back_populates="profiles")
     expenses = relationship("Expense", back_populates="profile")
