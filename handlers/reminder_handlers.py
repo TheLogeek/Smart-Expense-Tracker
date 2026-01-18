@@ -9,7 +9,7 @@ import datetime
 logger = logging.getLogger(__name__)
 
 # States for reminder conversation
-SET_REMINDER_TIME = range(1)
+MANAGE_REMINDER_MENU, SET_REMINDER_TIME = range(2)
 
 async def manage_reminders_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Displays the menu for managing reminders."""
@@ -38,7 +38,7 @@ async def manage_reminders_menu(update: Update, context: ContextTypes.DEFAULT_TY
 
     await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
     db_session.close()
-    return ConversationHandler.END # End here, handlers will be separate
+    return MANAGE_REMINDER_MENU # Keep conversation alive
 
 async def toggle_daily_reminders_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Toggles the user's daily reminder setting."""
@@ -76,7 +76,7 @@ async def toggle_daily_reminders_handler(update: Update, context: ContextTypes.D
     await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
 
     db_session.close()
-    return ConversationHandler.END
+    return MANAGE_REMINDER_MENU
 
 async def prompt_for_reminder_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Prompts the user to enter their preferred reminder time."""

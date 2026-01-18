@@ -31,7 +31,7 @@ from handlers import (
     VIEW_TRANSACTIONS, CLEAR_HISTORY_MENU, CONFIRM_CLEAR_HISTORY, # Add new states
     clear_history_menu_handler, execute_clear_history, cancel_clear_history, # Add new handlers
     set_currency_and_create_profile, change_currency_handler, set_currency_handler, # Import currency handlers
-    SET_REMINDER_TIME # Import new reminder state
+    SET_REMINDER_TIME, MANAGE_REMINDER_MENU, CHANGE_CURRENCY # Import new reminder state and currency change state
 )
 import datetime
 import zoneinfo
@@ -265,12 +265,15 @@ async def startup_event():
     ptb_application.add_handler(ConversationHandler(
         entry_points=[CallbackQueryHandler(manage_reminders_menu, pattern="^manage_reminders$")],
         states={
+            MANAGE_REMINDER_MENU: [
+                CallbackQueryHandler(toggle_daily_reminders_handler, pattern="^toggle_daily_reminders$"),
+                CallbackQueryHandler(prompt_for_reminder_time, pattern="^change_reminder_time$"),
+                CallbackQueryHandler(manage_reminders_menu, pattern="^back_to_reminders_menu$"), # To return to this menu
+            ],
             SET_REMINDER_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_reminder_time)],
         },
         fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel$"), CommandHandler("cancel", cancel)],
     ))
-    ptb_application.add_handler(CallbackQueryHandler(toggle_daily_reminders_handler, pattern="^toggle_daily_reminders$"))
-    ptb_application.add_handler(CallbackQueryHandler(prompt_for_reminder_time, pattern="^change_reminder_time$"))
     
     ptb_application.add_handler(CommandHandler("start", start)) # Moved here from conv handler entry points
     ptb_application.add_handler(CallbackQueryHandler(check_subscription_status, pattern="^check_subscription$"))
