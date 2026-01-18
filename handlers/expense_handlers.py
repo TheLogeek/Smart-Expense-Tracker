@@ -2,6 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from models import SessionLocal
 from services import ExpenseService, UserService, SubscriptionService, ProfileService, OCRService
+from utils.misc_utils import get_currency_symbol # Import get_currency_symbol
 from .menu_handlers import back_to_main_menu_keyboard
 import logging
 import io
@@ -9,6 +10,7 @@ import json
 import re
 import datetime
 import PIL.Image
+from telegram.error import BadRequest
 
 logger = logging.getLogger(__name__)
 
@@ -157,8 +159,10 @@ async def enter_expense_details(update: Update, context: ContextTypes.DEFAULT_TY
     keyboard.append([InlineKeyboardButton("Add Custom Category", callback_data="add_custom_category")])
     reply_markup = InlineKeyboardMarkup(keyboard)
     
+    currency_symbol = get_currency_symbol(current_profile.currency)
+
     await update.message.reply_text(
-        f"You entered: \nAmount: {amount}\nDescription: {description}\n\nPlease select a category:",
+        f"You entered: \nAmount: {currency_symbol}{amount:,}\nDescription: {description}\n\nPlease select a category:",
         reply_markup=reply_markup
     )
     logger.info(f"enter_expense_details returning SELECT_CATEGORY for user {user_telegram_id}")
@@ -194,6 +198,11 @@ async def upload_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Use the existing expense parser on the OCR text
     db_session = context.user_data['db_session']
     expense_service = ExpenseService(db_session)
+    
+    profile_service = ProfileService(db_session) # Fetch profile service
+    user_telegram_id = update.effective_user.id
+    current_profile = profile_service.get_current_profile(user_telegram_id) # Get current profile
+
     amount, description = expense_service.parse_expense_message(ocr_result_text)
     
     if amount is None:
@@ -211,8 +220,7 @@ async def upload_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     context.user_data['expense_description'] = description
     context.user_data['expense_date'] = None # OCR doesn't provide a date with this prompt
 
-    profile_service = ProfileService(db_session)
-    current_profile = profile_service.get_current_profile(update.effective_user.id)
+    
     categories = expense_service.get_categories(current_profile.id)
     
     keyboard = []
@@ -222,8 +230,10 @@ async def upload_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     
+    currency_symbol = get_currency_symbol(current_profile.currency) # Get currency symbol
+
     await update.message.reply_text(
-        f"OCR results:\nAmount: {amount}\nDescription: {description}\n\n"
+        f"OCR results:\nAmount: {currency_symbol}{amount:,}\nDescription: {description}\n\n"
         f"Please select a category or add a new one:",
         reply_markup=reply_markup
     )
@@ -274,8 +284,9 @@ async def select_category(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             date=expense_date
         )
         
+        currency_symbol = get_currency_symbol(current_profile.currency) # Get currency symbol
         await query.edit_message_text(
-            f"Expense of {amount} for {description} under '{category.name}' saved successfully!",
+            f"Expense of {currency_symbol}{amount:,} for {description} under '{category.name}' saved successfully!",
             reply_markup=back_to_main_menu_keyboard()
         )
         db_session.close() # Close session on conversation end
@@ -284,7 +295,7 @@ async def select_category(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     
     await query.edit_message_text("Invalid selection. Please try again.", reply_markup=back_to_main_menu_keyboard())
     logger.info("select_category returning SELECT_CATEGORY (invalid selection)")
-    return SELECT_CATEGORY
+    return ConversationHandler.END
 
 async def add_custom_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Adds a new custom category and saves the expense."""
@@ -333,9 +344,10 @@ async def add_custom_category(update: Update, context: ContextTypes.DEFAULT_TYPE
         category_id=new_category.id,
         date=expense_date
     )
+    currency_symbol = get_currency_symbol(current_profile.currency) # Get currency symbol
 
     await update.message.reply_text(
-        f"Custom category '{new_category.name}' added and expense of {amount} for {description} saved successfully!",
+        f"Custom category '{new_category.name}' added and expense of {currency_symbol}{amount:,} for {description} saved successfully!",
         reply_markup=back_to_main_menu_keyboard()
     )
     db_session.close() # Close session on conversation end

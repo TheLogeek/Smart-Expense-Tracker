@@ -2,6 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from models import SessionLocal
 from services import IncomeService, ProfileService, UserService
+from utils.misc_utils import get_currency_symbol # Import get_currency_symbol
 from .menu_handlers import back_to_main_menu_keyboard
 import logging
 
@@ -89,8 +90,10 @@ async def enter_income_details(update: Update, context: ContextTypes.DEFAULT_TYP
 
     income_service.add_income(current_profile.id, amount, source)
     
+    currency_symbol = get_currency_symbol(current_profile.currency)
+
     await update.message.reply_text(
-        f"Income of {amount} from {source} saved successfully!",
+        f"Income of {currency_symbol}{amount:,} from {source} saved successfully!",
         reply_markup=back_to_main_menu_keyboard()
     )
     db_session.close()

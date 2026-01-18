@@ -6,6 +6,7 @@ from services import ExpenseService, IncomeService, ProfileService
 from .menu_handlers import back_to_main_menu_keyboard
 import datetime
 from utils.datetime_utils import to_wat, wat_day_bounds_utc, wat_week_bounds_utc, wat_month_bounds_utc # Import new utilities
+from utils.misc_utils import get_currency_symbol # Import get_currency_symbol
 from datetime import timezone # Import timezone for UTC
 
 # States for transaction history pagination and clearing
@@ -61,6 +62,7 @@ async def transaction_history_handler(update: Update, context: ContextTypes.DEFA
     all_transactions.sort(key=lambda x: x['date'], reverse=True)
     context.user_data['all_transactions'] = all_transactions
     context.user_data['current_transaction_page'] = 0
+    context.user_data['current_profile_currency'] = current_profile.currency # Store currency
 
     return await send_transactions_page(update, context)
 
@@ -68,6 +70,8 @@ async def send_transactions_page(update: Update, context: ContextTypes.DEFAULT_T
     """Sends the current page of transactions."""
     all_transactions = context.user_data['all_transactions']
     current_page = context.user_data['current_transaction_page']
+    currency_code = context.user_data.get('current_profile_currency', 'NGN') # Default to NGN
+    currency_symbol = get_currency_symbol(currency_code)
 
     start_index = current_page * TRANSACTIONS_PER_PAGE
     end_index = start_index + TRANSACTIONS_PER_PAGE
@@ -83,7 +87,7 @@ async def send_transactions_page(update: Update, context: ContextTypes.DEFAULT_T
     else:
         message_text = "<b>📊 Transaction History:</b>\n\n"
         for t in transactions_on_page:
-            amount_str = f"₦{t['amount']:,}"
+            amount_str = f"{currency_symbol}{t['amount']:,}"
             type_emoji = "🔴" if t['type'] == "Expense" else "🟢"
             
             # --- START LOGGING ---

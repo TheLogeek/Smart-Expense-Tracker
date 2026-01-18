@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 from models import SessionLocal
 from services import SummaryService, UserService, ProfileService, MONTHLY_PRO_PRICE, YEARLY_PRO_PRICE, YEARLY_SAVINGS_NAIRA, YEARLY_SAVINGS_PERCENT
 from visuals import VisualsService
+from utils.misc_utils import get_currency_symbol # Import get_currency_symbol
 from .menu_handlers import back_to_main_menu_keyboard
 import logging
 
@@ -40,15 +41,17 @@ async def generate_today_summary(update: Update, context: ContextTypes.DEFAULT_T
         )
         db_session.close()
         return ConversationHandler.END
+    
+    currency_symbol = get_currency_symbol(current_profile.currency)
 
     summary_data = summary_service.get_daily_summary(current_profile.id)
 
     message_text = (
         f"<b>📊 Today's Summary ({current_profile.name}):</b>\n\n"
-        f"💸 Total Expenses: ₦{summary_data['total_expenses']:,}\n"
+        f"💸 Total Expenses: {currency_symbol}{summary_data['total_expenses']:,}\n"
         f"📝 Expense Entries: {summary_data['num_expense_entries']}\n"
-        f"💰 Total Income: ₦{summary_data['total_income']:,}\n"
-        f"📈 Remaining Balance: ₦{summary_data['balance']:,}\n\n"
+        f"💰 Total Income: {currency_symbol}{summary_data['total_income']:,}\n"
+        f"📈 Remaining Balance: {currency_symbol}{summary_data['balance']:,}\n\n"
     )
 
     if summary_data["budget_insights"]:
@@ -146,15 +149,17 @@ async def generate_weekly_summary(update: Update, context: ContextTypes.DEFAULT_
         )
         db_session.close()
         return ConversationHandler.END
+    
+    currency_symbol = get_currency_symbol(current_profile.currency)
 
     summary_data = summary_service.get_weekly_summary(current_profile.id)
 
     message_text = (
         f"<b>📊 This Week's Summary ({current_profile.name}):</b>\n\n"
-        f"💸 Total Expenses: ₦{summary_data['total_expenses']:,}\n"
+        f"💸 Total Expenses: {currency_symbol}{summary_data['total_expenses']:,}\n"
         f"📝 Expense Entries: {summary_data['num_expense_entries']}\n"
-        f"💰 Total Income: ₦{summary_data['total_income']:,}\n"
-        f"📈 Remaining Balance: ₦{summary_data['balance']:,}\n\n"
+        f"💰 Total Income: {currency_symbol}{summary_data['total_income']:,}\n"
+        f"📈 Remaining Balance: {currency_symbol}{summary_data['balance']:,}\n\n"
     )
 
     if summary_data["budget_insights"]:
@@ -259,15 +264,17 @@ async def generate_monthly_summary(update: Update, context: ContextTypes.DEFAULT
         )
         db_session.close()
         return ConversationHandler.END
+    
+    currency_symbol = get_currency_symbol(current_profile.currency)
 
     summary_data = summary_service.get_monthly_summary(current_profile.id)
 
     message_text = (
         f"<b>📊 This Month's Summary ({current_profile.name}):</b>\n\n"
-        f"💸 Total Expenses: ₦{summary_data['total_expenses']:,}\n"
+        f"💸 Total Expenses: {currency_symbol}{summary_data['total_expenses']:,}\n"
         f"📝 Expense Entries: {summary_data['num_expense_entries']}\n"
-        f"💰 Total Income: ₦{summary_data['total_income']:,}\n"
-        f"📈 Remaining Balance: ₦{summary_data['balance']:,}\n\n"
+        f"💰 Total Income: {currency_symbol}{summary_data['total_income']:,}\n"
+        f"📈 Remaining Balance: {currency_symbol}{summary_data['balance']:,}\n\n"
     )
 
     if summary_data["budget_insights"]:
@@ -308,8 +315,8 @@ async def generate_monthly_summary(update: Update, context: ContextTypes.DEFAULT
             message_text += (
                 f"\n\n<i>Your spending patterns are blurred. Upgrade to Pro to see detailed charts!</i>\n\n"
                 f"<b>Upgrade to Pro:</b>\n"
-                f"Monthly: ₦{MONTHLY_PRO_PRICE:,}\n"
-                f"Yearly: ₦{YEARLY_PRO_PRICE:,} (Save ₦{YEARLY_SAVINGS_NAIRA:,} - {YEARLY_SAVINGS_PERCENT}%)"
+                f"Monthly: {currency_symbol}{MONTHLY_PRO_PRICE:,}\n"
+                f"Yearly: {currency_symbol}{YEARLY_PRO_PRICE:,} (Save {currency_symbol}{YEARLY_SAVINGS_NAIRA:,} - {YEARLY_SAVINGS_PERCENT}%)"
             )
         
         # Send text summary
