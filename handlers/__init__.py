@@ -33,6 +33,7 @@ from .misc_handlers import (
     set_currency_and_create_profile,
     change_currency_handler,
     set_currency_handler,
+    CHANGE_CURRENCY,
     features_handler, help_handler, export_logs_handler
 )
 from .transaction_handlers import (

@@ -257,7 +257,7 @@ async def startup_event():
     ptb_application.add_handler(ConversationHandler(
         entry_points=[CallbackQueryHandler(change_currency_handler, pattern="^change_currency$")],
         states={
-            ASK_CURRENCY: [CallbackQueryHandler(set_currency_handler, pattern="^set_currency_.*$")],
+            CHANGE_CURRENCY: [CallbackQueryHandler(set_currency_handler, pattern="^set_currency_.*$")],
         },
         fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel$"), CommandHandler("cancel", cancel)],
     ))
