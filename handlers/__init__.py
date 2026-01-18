@@ -31,6 +31,8 @@ from .misc_handlers import (
     switch_profile_handler,
     CREATE_PROFILE_TYPE, ASK_PROFILE_NAME, ASK_CURRENCY,
     set_currency_and_create_profile,
+    change_currency_handler,
+    set_currency_handler,
     features_handler, help_handler, export_logs_handler
 )
 from .transaction_handlers import (
