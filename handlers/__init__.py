@@ -30,6 +30,7 @@ from .misc_handlers import (
     start_create_profile, create_profile_type, create_profile_name, start, # Import start
     switch_profile_handler,
     CREATE_PROFILE_TYPE, ASK_PROFILE_NAME, ASK_CURRENCY,
+    set_currency_and_create_profile,
     features_handler, help_handler, export_logs_handler
 )
 from .transaction_handlers import (
