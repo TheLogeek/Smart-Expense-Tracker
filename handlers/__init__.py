@@ -29,7 +29,7 @@ from .referral_handlers import generate_referral_link_handler
 from .misc_handlers import (
     start_create_profile, create_profile_type, create_profile_name, start, # Import start
     switch_profile_handler,
-    CREATE_PROFILE_TYPE, ASK_PROFILE_NAME,
+    CREATE_PROFILE_TYPE, ASK_PROFILE_NAME, ASK_CURRENCY,
     features_handler, help_handler, export_logs_handler
 )
 from .transaction_handlers import (
